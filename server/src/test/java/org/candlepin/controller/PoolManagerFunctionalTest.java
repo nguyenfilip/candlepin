@@ -100,7 +100,7 @@ public class PoolManagerFunctionalTest extends DatabaseTestFixture {
     private EventSink eventSink;
 
 
-    @Before
+//    @Before
     public void setUp() throws Exception {
         o = createOwner();
         ownerCurator.create(o);
@@ -183,6 +183,15 @@ public class PoolManagerFunctionalTest extends DatabaseTestFixture {
         childVirtSystem = new Consumer("virt system", "user", o, systemType);
 
         consumerCurator.create(childVirtSystem);
+    }
+
+    @Test
+    public void createOwnerTest() {
+        try {
+            poolManager.createOwners(false);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Test

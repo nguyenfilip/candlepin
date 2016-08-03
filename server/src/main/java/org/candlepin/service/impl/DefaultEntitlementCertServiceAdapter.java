@@ -222,7 +222,7 @@ public class DefaultEntitlementCertServiceAdapter extends BaseEntitlementCertSer
      * @return
      * @throws IOException
      */
-    private String getContentPrefix(Entitlement ent, boolean useContentPrefix)
+    public String getContentPrefix(Entitlement ent, boolean useContentPrefix)
         throws IOException {
         String contentPrefix = null;
         if (useContentPrefix) {
@@ -242,7 +242,7 @@ public class DefaultEntitlementCertServiceAdapter extends BaseEntitlementCertSer
      * @param ent
      * @return
      */
-    private Map<String, EnvironmentContent> getPromotedContent(Entitlement ent) {
+    public Map<String, EnvironmentContent> getPromotedContent(Entitlement ent) {
         // Build a set of all content IDs promoted to the consumer's environment so
         // we can determine if anything needs to be skipped:
         Map<String, EnvironmentContent> promotedContent =

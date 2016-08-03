@@ -39,7 +39,7 @@
     </appender>
 
     <logger name="org.candlepin" level="INFO"/>
-
+    <logger name="org.hibernate.SQL" level="INFO"/>
     <root level="WARN">
         <appender-ref ref="CandlepinAppender" />
         <appender-ref ref="ErrorAppender" />

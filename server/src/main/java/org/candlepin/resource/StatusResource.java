@@ -14,25 +14,27 @@
  */
 package org.candlepin.resource;
 
+import java.util.Map;
+
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.MediaType;
+
 import org.candlepin.common.auth.SecurityHole;
 import org.candlepin.common.config.Configuration;
 import org.candlepin.common.util.VersionUtil;
 import org.candlepin.config.ConfigProperties;
+import org.candlepin.controller.CandlepinPoolManager;
 import org.candlepin.model.RulesCurator;
 import org.candlepin.model.Status;
 import org.candlepin.policy.js.JsRunnerProvider;
-
-import com.google.inject.Inject;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Map;
-
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
+import com.google.inject.Inject;
 
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -59,11 +61,13 @@ public class StatusResource {
     private boolean standalone = true;
 
     private RulesCurator rulesCurator;
+    private CandlepinPoolManager poolManager;
     private JsRunnerProvider jsProvider;
 
     @Inject
-    public StatusResource(RulesCurator rulesCurator, Configuration config, JsRunnerProvider jsProvider) {
+    public StatusResource(RulesCurator rulesCurator, Configuration config, JsRunnerProvider jsProvider, CandlepinPoolManager poolManager) {
         this.rulesCurator = rulesCurator;
+        this.poolManager = poolManager;
 
         Map<String, String> map = VersionUtil.getVersionMap();
         version = map.get("version");
@@ -119,5 +123,31 @@ public class StatusResource {
             jsProvider.getRulesVersion(), jsProvider.getRulesSource());
         return status;
     }
+    
+
+    @POST
+    @Path("createOwners")
+    @Produces({ MediaType.TEXT_PLAIN})
+    @SecurityHole(noAuth = true, anon = true)
+    public String createOwners(@QueryParam("cacheKeyPair") boolean cacheKeyPair) {
+        try {
+            poolManager.createOwners(cacheKeyPair);
+        } catch (Throwable e){
+            log.error("Error", e);
+            throw new RuntimeException(e);
+        }
+        return "OK";
+    }
+    
+    
+    @POST
+    @Path("createOwnersVrit")
+    @Produces({ MediaType.TEXT_PLAIN})
+    @SecurityHole(noAuth = true, anon = true)
+    public String createOwnersVrit() {
+        poolManager.createOwnersVritant();
+        return "OK";
+    }
 
 }
+

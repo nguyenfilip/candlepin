@@ -14,6 +14,33 @@
  */
 package org.candlepin.controller;
 
+import java.io.IOException;
+import java.math.BigInteger;
+import java.security.GeneralSecurityException;
+import java.security.KeyPair;
+import java.security.cert.X509Certificate;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Random;
+import java.util.Set;
+
+import javax.persistence.EntityManager;
+
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections.MapUtils;
+import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.time.StopWatch;
 import org.candlepin.audit.Event;
 import org.candlepin.audit.Event.Target;
 import org.candlepin.audit.Event.Type;
@@ -25,16 +52,24 @@ import org.candlepin.common.paging.Page;
 import org.candlepin.common.paging.PageRequest;
 import org.candlepin.config.ConfigProperties;
 import org.candlepin.model.Branding;
+import org.candlepin.model.CertificateSerial;
+import org.candlepin.model.CertificateSerialCurator;
 import org.candlepin.model.Consumer;
 import org.candlepin.model.ConsumerCurator;
+import org.candlepin.model.ConsumerType;
+import org.candlepin.model.ConsumerType.ConsumerTypeEnum;
 import org.candlepin.model.Content;
 import org.candlepin.model.Entitlement;
+import org.candlepin.model.EntitlementCertificate;
 import org.candlepin.model.EntitlementCertificateCurator;
 import org.candlepin.model.EntitlementCurator;
 import org.candlepin.model.Environment;
+import org.candlepin.model.KeyPairCurator;
 import org.candlepin.model.Owner;
+import org.candlepin.model.OwnerContent;
 import org.candlepin.model.OwnerContentCurator;
 import org.candlepin.model.OwnerCurator;
+import org.candlepin.model.OwnerProduct;
 import org.candlepin.model.OwnerProductCurator;
 import org.candlepin.model.Pool;
 import org.candlepin.model.Pool.PoolType;
@@ -42,6 +77,8 @@ import org.candlepin.model.PoolCurator;
 import org.candlepin.model.PoolFilterBuilder;
 import org.candlepin.model.PoolQuantity;
 import org.candlepin.model.Product;
+import org.candlepin.model.ProductAttribute;
+import org.candlepin.model.ProductContent;
 import org.candlepin.model.ProductCurator;
 import org.candlepin.model.SourceSubscription;
 import org.candlepin.model.activationkeys.ActivationKey;
@@ -50,6 +87,7 @@ import org.candlepin.model.dto.ProductContentData;
 import org.candlepin.model.dto.ProductData;
 import org.candlepin.model.dto.Subscription;
 import org.candlepin.pinsetter.core.PinsetterKernel;
+import org.candlepin.pki.PKIUtility;
 import org.candlepin.policy.EntitlementRefusedException;
 import org.candlepin.policy.ValidationError;
 import org.candlepin.policy.ValidationResult;
@@ -63,32 +101,16 @@ import org.candlepin.policy.js.pool.PoolRules;
 import org.candlepin.policy.js.pool.PoolUpdate;
 import org.candlepin.resource.dto.AutobindData;
 import org.candlepin.service.SubscriptionServiceAdapter;
+import org.candlepin.service.impl.DefaultEntitlementCertServiceAdapter;
 import org.candlepin.sync.SubscriptionReconciler;
 import org.candlepin.util.Util;
-
-import com.google.inject.Inject;
-import com.google.inject.persist.Transactional;
-
-import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.collections.MapUtils;
-import org.apache.commons.lang.StringUtils;
+import org.candlepin.util.X509V3ExtensionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xnap.commons.i18n.I18n;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
+import com.google.inject.Inject;
+import com.google.inject.persist.Transactional;
 
 
 
@@ -112,6 +134,7 @@ public class CandlepinPoolManager implements PoolManager {
     private ConsumerCurator consumerCurator;
     private EntitlementCertificateCurator entitlementCertificateCurator;
     private EntitlementCertificateGenerator ecGenerator;
+    private DefaultEntitlementCertServiceAdapter certAdapter;
     private ComplianceRules complianceRules;
     private ProductCurator productCurator;
     private ProductManager productManager;
@@ -122,7 +145,10 @@ public class CandlepinPoolManager implements PoolManager {
     private OwnerCurator ownerCurator;
     private OwnerProductCurator ownerProductCurator;
     private PinsetterKernel pinsetterKernel;
-
+    private X509V3ExtensionUtil v3extensionUtil;
+    private CertificateSerialCurator serialCurator;
+    private KeyPairCurator keyPairCurator;
+    private PKIUtility pki;
     /**
      * @param poolCurator
      * @param subAdapter
@@ -152,9 +178,18 @@ public class CandlepinPoolManager implements PoolManager {
         OwnerCurator ownerCurator,
         OwnerProductCurator ownerProductCurator,
         PinsetterKernel pinsetterKernel,
+        DefaultEntitlementCertServiceAdapter certAdapter,
+        X509V3ExtensionUtil v3extensionUtil,
+        CertificateSerialCurator serialCurator,
+        KeyPairCurator keyPairCurator,
+        PKIUtility pki,
         I18n i18n) {
-
+        this.pki = pki;
+        this.serialCurator = serialCurator;
+        this.keyPairCurator = keyPairCurator;
+        this.certAdapter = certAdapter;
         this.poolCurator = poolCurator;
+        this.v3extensionUtil = v3extensionUtil;
         this.sink = sink;
         this.eventFactory = eventFactory;
         this.config = config;
@@ -178,6 +213,259 @@ public class CandlepinPoolManager implements PoolManager {
         this.i18n = i18n;
     }
 
+    private static int nextint = 0; 
+
+    public static int randomInt() {
+        return nextint++;
+    }
+    
+    public void createOwners(boolean cacheKeyPair){
+        int batch = 2000;
+        int n = 127000;
+        EntityManager em = consumerCurator.getEntityManager();
+        StopWatch sw = new StopWatch();
+        StopWatch swTotal = new StopWatch();
+        sw.start();
+        
+        swTotal.start();
+
+        em.getTransaction().begin();
+        
+        ConsumerType type = createConsumerType(em, "system");
+        for (int i = 0; i < n;i++){
+            log.info("Creating owner {}",i);
+            createOwner(em, type, cacheKeyPair);
+            if (i % batch == 0) {
+                em.flush();
+                em.clear();
+                sw.stop();
+                log.info("PERF Created last {} owners in {}", batch, sw);
+                sw.reset();
+                sw.start();
+            }
+        }
+        
+        
+        em.getTransaction().commit();
+        
+        swTotal.stop();
+        log.info("PERF Total time to create {} owners {}", n, swTotal);
+        
+        printEstimationFor(swTotal, n, 127000);
+    }
+
+    private void printEstimationFor(StopWatch sw, int generated, int nToEstimate) {
+        double averageForOne = (double)sw.getTime()/generated;        
+        long estimatedTime = (long)(nToEstimate*averageForOne);
+        long hours = estimatedTime/1000/60/60;
+        log.info("Estimation to create {} consumers is {} hours", nToEstimate, hours);
+    }
+
+    public void createOwnersVritant() {
+        for (int i = 0; i < 10;i++){
+            log.info("Creating owner {}",i);
+            createOwnerVrit();
+        }
+
+    }
+    public void createOwner(EntityManager em , ConsumerType type, boolean cacheKeyPair) {
+        Owner owner = createOwner(em);
+        Product p = createProduct(em, owner);
+
+
+        
+        for (int i = 0; i < 20; i++) {
+            createContent(em, owner, p);
+        }
+        
+        Pool pool = null;
+        for (int i = 0; i < 5; i++) {
+            List<Product> pps = new ArrayList<Product>();
+            for (int j = 0; j < 20; j++) {
+                pps.add(createProvidedProduct(em, owner));
+            }
+            pool = createPool(em, owner, p, pps, 10);
+        }
+        Consumer c = createConsumer(em, owner, type);
+        
+        for (int i = 0; i < 6; i++) {
+            createEntitlement(em, c, pool, 1,cacheKeyPair);
+        }
+    }
+    
+    public void createOwnerVrit() {
+        try {
+            Owner o = TestUtil.createOwner();
+            Product p = TestUtil.createProduct();
+            int i;
+            for (i = 0; i < 20; i++) {
+                ProductAttribute pa = new ProductAttribute();
+                pa.setName(TestUtil.randomString());
+                pa.setValue(TestUtil.randomString());
+                p.addAttribute(pa);
+            }
+            p.addAttribute(new ProductAttribute("multi-entitlement", "yes"));
+            ownerCurator.create(o);
+            productManager.createProduct(p, o);
+            for (i = 0; i < 20; i++) {
+                Content c = TestUtil.createContent();
+                contentManager.createContent(c, o);
+                ProductContent pc = new ProductContent(p, c, false);
+                productManager.addContentToProduct(p, Arrays.asList(pc), o, false);
+            }
+            Pool pool = null;
+            for (i = 0; i < 5; i++) {
+                List<Product> pps = new ArrayList<Product>();
+                for (int j = 0; j < 20; j++) {
+                    Product pp = TestUtil.createProduct();
+                    productManager.createProduct(pp, o);
+                    pps.add(pp);
+                }
+                pool = TestUtil.createPool(o, p, pps, 10);
+                pool = createAndEnrichPools(pool);
+            }
+            ConsumerType ct = consumerCurator.getSystemType();
+            Consumer consumer = TestUtil.createConsumer(ct, o);
+            consumer = consumerCurator.create(consumer);
+            for (i = 0; i < 6; i++) {
+                Map<String, Integer> pQs = new HashMap<String, Integer>();
+                pQs.put(pool.getId(), 1);
+                entitleByPools(consumer, pQs);
+            }
+            log.error("VRITANT " + o.getKey());
+        } catch (Exception e) {
+            log.error("VRITANT error ", e);
+        }
+    }
+    
+    private ConsumerType createConsumerType(EntityManager em,  String string) {
+        ConsumerType type = new ConsumerType(ConsumerTypeEnum.SYSTEM);
+        type.setLabel("type"+randomInt());
+        em.persist(type);
+        return type;
+    }
+
+    private Owner createOwner(EntityManager em) {
+        int randId=  randomInt();
+        Owner owner = new Owner("okey" + randId, "oname" + randId);
+        em.persist(owner);
+        return owner;
+    }
+
+    private void createEntitlement(EntityManager em, Consumer c, Pool p, int i, boolean cacheKeyPair) {
+        Entitlement e = new Entitlement(p, c, i);
+
+        em.persist(e);
+        EntitlementCertificate ecert = new EntitlementCertificate();
+        CertificateSerial serial =  new CertificateSerial(e.getEndDate());
+        em.persist(serial);
+        Set<Product> provided = new HashSet<Product>(p.getProvidedProducts());
+        KeyPair keyPair = getConsumerKeyPair(c, cacheKeyPair);
+        List<org.candlepin.model.dto.Product> productModels;
+        try {
+            productModels = v3extensionUtil.createProducts(p.getProduct(),
+                    provided, certAdapter.getContentPrefix(e, true), certAdapter.getPromotedContent(e), c, e);
+            X509Certificate x509Cert = certAdapter.createX509Certificate(e, 
+                    p.getProduct(), provided, productModels,
+                    BigInteger.valueOf(serial.getId()), keyPair, false);
+
+            ecert.setSerial(serial);
+            byte[] pemEncodedKeyPair = pki.getPemEncoded(keyPair.getPrivate());
+            ecert.setKeyAsBytes(pemEncodedKeyPair);
+
+            String pem = new String(this.pki.getPemEncoded(x509Cert));
+            ecert.setCert(pem);
+            ecert.setEntitlement(e);
+            em.persist(ecert);
+        }
+        catch (Exception e1) {
+            throw new RuntimeException(e1);
+        }
+
+        e.addCertificate(ecert);
+    }
+    
+    public static KeyPair keypair = null;
+
+    private KeyPair getConsumerKeyPair(Consumer c, boolean cacheKeyPair) {
+        //Just testing how faster is when we don't create consumer key pair every time
+        if (keypair == null || !cacheKeyPair)
+            keypair = keyPairCurator.getConsumerKeyPair(c);
+        return keypair;
+    }
+
+    private Consumer createConsumer(EntityManager em, Owner owner, ConsumerType type) {
+        int id = randomInt();
+        Consumer c = new Consumer("cons"+id, "username"+id,owner, type);
+        em.persist(c);
+        return c;
+    }
+
+    private void createContent(EntityManager em, Owner o,  Product p) {
+        int id = randomInt();
+        Content c = new Content();//TODO
+        c.setId("content_"+"_"+id);
+        c.setName("content_"+"_"+id);
+        c.setContentUrl("https://test.url.com");
+        c.setGpgUrl("https://gpg.test.url.com");
+        c.setType("type");
+        c.setArches("x86");
+        c.setLabel("label");
+        c.setVendor("vendor");
+        
+        ProductContent pc = new ProductContent(p, c, true);
+        p.addProductContent(pc);
+        em.persist(c);
+        OwnerContent oc = new OwnerContent(o,  c);
+        em.persist(oc);
+        
+
+    }
+
+    private Pool createPool(EntityManager em, Owner owner, Product p, List<Product> pps, int i) {
+        Calendar c =  Calendar.getInstance();
+        c.add(Calendar.DAY_OF_MONTH, 10);
+        Pool pool = new Pool(owner, p, pps, (long)i, new Date(), c.getTime(), "contr"+randomInt(), "acc"+randomInt(), "order"+randomInt());
+        int subid = randomInt();
+        pool.setSourceSubscription(new SourceSubscription("sub"+subid, "subkey"+subid));
+        em.persist(pool);
+        return pool;
+    }
+
+    private Product createProduct(EntityManager em, Owner owner) {
+        int id = randomInt();
+        Product p = new Product("pid"+id, "pname"+id);
+        p.addAttribute(new ProductAttribute("multi-entitlement", "yes"));
+        
+        em.persist(p);
+        
+        OwnerProduct op = new OwnerProduct(owner, p);
+        em.persist(op);
+        
+        for (int i = 0; i < 20; i++) {
+            ProductAttribute pa = new ProductAttribute();
+            pa.setName(TestUtil.randomString());
+            pa.setValue(TestUtil.randomString());
+            
+            p.addAttribute(pa);
+            em.persist(pa);
+        }
+        
+        return p;
+    }
+
+
+    private Product createProvidedProduct(EntityManager em, Owner owner) {
+        int id = randomInt();
+        Product p = new Product("pid"+id, "pname"+id);
+        
+        em.persist(p);
+        
+        OwnerProduct op = new OwnerProduct(owner, p);
+        em.persist(op);
+        
+        return p;
+    }
     /*
      * We need to update/regen entitlements in the same transaction we update pools
      * so we don't miss anything
@@ -2288,3 +2576,4 @@ public class CandlepinPoolManager implements PoolManager {
         return filteredPools;
     }
 }
+

@@ -1,0 +1,216 @@
+cp_consumer_facts
+     0
+
+cp_content
+     0
+
+cp_activationkey_pool
+     0
+
+cp_cert_serial
+    60
+
+cp_consumer_guests
+     0
+
+cp_installed_products
+     0
+
+cp_consumer_type
+     9
+
+cp_content_modified_products
+     0
+
+cp_deleted_consumers
+     0
+
+cp_event
+     0
+
+cp_export_metadata
+     0
+
+cp_environment
+     0
+
+cp_key_pair
+    10
+
+cp_permission
+     0
+
+cp_product_certificate
+     0
+
+cp_product_dependent_products
+     0
+
+cp_product_pool_attribute
+     0
+
+cp_user
+     1
+
+cp_rules
+     1
+
+cp_subscription
+     0
+
+cp_role
+     0
+
+cp_pool_attribute
+     0
+
+cp_certificate
+     0
+
+cp_activation_key
+     0
+
+cp_role_users
+     0
+
+cp_env_content
+     0
+
+cp_owner
+    10
+
+cp_product_content
+     0
+
+cp_consumer
+    10
+
+cp_import_record
+     0
+
+cp_id_cert
+     0
+
+cp_pool_products
+     0
+
+cp_product_attribute
+     0
+
+cp_product
+     0
+
+cp_dist_version
+     5
+
+cp_dist_version_capability
+    16
+
+cp_upstream_consumer
+     0
+
+cp_consumer_capability
+     0
+
+cp_sub_derivedprods
+     0
+
+cp_cdn_certificate
+     0
+
+cp_cdn
+     0
+
+cp_import_upstream_consumer
+     0
+
+cp_subscription_products
+     0
+
+cp_pool_source_stack
+     0
+
+cp_consumer_guests_attributes
+     0
+
+cp_ent_certificate
+    60
+
+cp_content_override
+     0
+
+cp_branding
+     0
+
+cp_sub_branding
+     0
+
+cp_consumer_hypervisor
+     0
+
+cp_pool_source_sub
+     0
+
+cp_pool_branding
+     0
+
+cp_activationkey_product
+     0
+
+cp_consumer_content_tags
+     0
+
+cp_entitlement
+    60
+
+cp2_products
+  1010
+
+cp2_environment_content
+     0
+
+cp2_activation_key_products
+     0
+
+cp2_pool_provided_products
+  1000
+
+cp2_content_modified_products
+     0
+
+cp2_installed_products
+     0
+
+cp2_content
+   200
+
+cp2_pool_derprov_products
+     0
+
+cp2_product_attributes
+   210
+
+cp2_owner_products
+  1010
+
+cp2_owner_content
+   200
+
+cp2_product_certificates
+     0
+
+cp2_product_content
+   200
+
+cp2_product_dependent_products
+     0
+
+cp_consumer_facts_lower
+     0
+
+cp2_pool_source_sub
+    50
+
+cp_pool
+    50
+

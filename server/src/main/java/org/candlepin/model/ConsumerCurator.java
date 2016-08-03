@@ -14,20 +14,30 @@
  */
 package org.candlepin.model;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+
+import javax.persistence.LockModeType;
+
+import org.apache.commons.collections.CollectionUtils;
 import org.candlepin.common.config.Configuration;
 import org.candlepin.common.exceptions.BadRequestException;
 import org.candlepin.common.exceptions.NotFoundException;
 import org.candlepin.common.paging.Page;
 import org.candlepin.common.paging.PageRequest;
 import org.candlepin.config.ConfigProperties;
+import org.candlepin.model.ConsumerType.ConsumerTypeEnum;
 import org.candlepin.resteasy.parameter.KeyValueParameter;
 import org.candlepin.util.Util;
-
-import com.google.common.collect.Iterables;
-import com.google.inject.Inject;
-import com.google.inject.persist.Transactional;
-
-import org.apache.commons.collections.CollectionUtils;
 import org.hibernate.Criteria;
 import org.hibernate.Hibernate;
 import org.hibernate.Query;
@@ -42,19 +52,9 @@ import org.hibernate.criterion.Subqueries;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-
-import javax.persistence.LockModeType;
+import com.google.common.collect.Iterables;
+import com.google.inject.Inject;
+import com.google.inject.persist.Transactional;
 
 /**
  * ConsumerCurator
@@ -86,6 +86,16 @@ public class ConsumerCurator extends AbstractHibernateCurator<Consumer> {
         return super.create(entity);
     }
 
+    @Transactional
+    public ConsumerType getSystemType() {
+        ConsumerType ct = consumerTypeCurator.lookupByLabel("system");
+        if (ct == null) {
+            ct = new ConsumerType(ConsumerTypeEnum.SYSTEM);
+            ct.setLabel("system");
+            consumerTypeCurator.create(ct);
+        }
+        return ct;
+    }
     @Transactional
     public void delete(Consumer entity) {
         // save off the IDs before we delete
