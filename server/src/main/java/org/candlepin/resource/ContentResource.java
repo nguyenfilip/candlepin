@@ -88,7 +88,10 @@ public class ContentResource {
     @Path("/{content_uuid}")
     public Content getContent(@PathParam("content_uuid") String contentUuid) {
         Content content = this.contentCurator.lookupByUuid(contentUuid);
-
+        contentCurator.clear();
+        contentCurator.getEntityManager().find(Content.class, content.getUuid());
+        contentCurator.clear();
+        contentCurator.getEntityManager().find(Content.class, content.getUuid());
         if (content == null) {
             throw new NotFoundException(
                 i18n.tr("Content with UUID \"{0}\" could not be found.", contentUuid)

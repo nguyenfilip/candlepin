@@ -105,6 +105,9 @@ HIBERNATE = [group('hibernate-core', 'hibernate-entitymanager', 'hibernate-c3p0'
              'dom4j:dom4j:jar:1.6.1',
              'org.jboss.logging:jboss-logging:jar:3.1.1.GA'] + JAVAX
 
+# HACK (transitive), remove this before merge to master.
+INFINISPAN = transitive('org.hibernate:hibernate-infinispan:jar:4.2.5.Final')
+
 POSTGRESQL = 'postgresql:postgresql:jar:9.0-801.jdbc4'
 
 SWAGGER = [group('swagger-jaxrs', 'swagger-core','swagger-models','swagger-annotations',
@@ -439,6 +442,7 @@ define "candlepin" do
       GETTEXT_COMMONS,
       GUICE,
       HIBERNATE,
+      INFINISPAN,
       HORNETQ,
       JACKSON,
       LIQUIBASE,

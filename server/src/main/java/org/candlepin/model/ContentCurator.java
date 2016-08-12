@@ -63,6 +63,7 @@ public class ContentCurator extends AbstractHibernateCurator<Content> {
     @Transactional
     public Content lookupByUuid(String uuid) {
         return (Content) currentSession().createCriteria(Content.class)
+                .setCacheable(true)
             .add(Restrictions.eq("uuid", uuid)).uniqueResult();
     }
 

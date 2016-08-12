@@ -14,24 +14,13 @@
  */
 package org.candlepin.model;
 
-import org.candlepin.model.dto.ContentData;
-import org.candlepin.service.UniqueIdGenerator;
-import org.candlepin.util.Util;
-
-import org.apache.commons.lang.builder.EqualsBuilder;
-import org.apache.commons.lang.builder.HashCodeBuilder;
-import org.hibernate.annotations.BatchSize;
-import org.hibernate.annotations.GenericGenerator;
-import org.hibernate.annotations.Type;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
+import javax.persistence.Cacheable;
 import javax.persistence.CollectionTable;
 import javax.persistence.Column;
 import javax.persistence.ElementCollection;
@@ -49,6 +38,19 @@ import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
 
+import org.apache.commons.lang.builder.EqualsBuilder;
+import org.apache.commons.lang.builder.HashCodeBuilder;
+import org.candlepin.model.dto.ContentData;
+import org.candlepin.service.UniqueIdGenerator;
+import org.candlepin.util.Util;
+import org.hibernate.annotations.BatchSize;
+import org.hibernate.annotations.Cache;
+import org.hibernate.annotations.CacheConcurrencyStrategy;
+import org.hibernate.annotations.GenericGenerator;
+import org.hibernate.annotations.Type;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 
 
 /**
@@ -58,6 +60,8 @@ import javax.xml.bind.annotation.XmlTransient;
 @XmlAccessorType(XmlAccessType.PROPERTY)
 @Entity
 @Table(name = "cp2_content")
+@Cacheable(value=true)
+@Cache(usage = CacheConcurrencyStrategy.READ_ONLY)
 public class Content extends AbstractHibernateObject implements SharedEntity, Cloneable {
 
     public static final  String UEBER_CONTENT_NAME = "ueber_content";

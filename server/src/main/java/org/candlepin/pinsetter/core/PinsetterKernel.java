@@ -124,13 +124,13 @@ public class PinsetterKernel {
      * startup
      */
     public void startup() throws PinsetterException {
-        try {
-            scheduler.start();
-            configure();
-        }
-        catch (SchedulerException e) {
-            throw new PinsetterException(e.getMessage(), e);
-        }
+//        try {
+//            scheduler.start();
+//            configure();
+//        }
+//        catch (SchedulerException e) {
+//            throw new PinsetterException(e.getMessage(), e);
+//        }
     }
 
     private void addToList(Set<String> impls, String confkey) {
